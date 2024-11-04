@@ -70,11 +70,13 @@ class FCOSClassificationHead(nn.Module):
         Some re-arrangement of the outputs is often preferred for training / inference.
         You can choose to do it here, or in compute_loss / inference.
         """
+        logits = []
         for i in range(len(x)):
-            x[i] = self.conv(x[i])
-            x[i] = self.cls_logits(x[i])
+            logit = self.conv(x[i])
+            logit = self.cls_logits(logit)
+            logits.append(logit)
         
-        return x
+        return logits
 
 
 class FCOSRegressionHead(nn.Module):
