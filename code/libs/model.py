@@ -392,7 +392,8 @@ class FCOS(nn.Module):
     def compute_loss(
         self, targets, points, strides, reg_range, cls_logits, reg_outputs, ctr_logits
     ):
-        return losses
+        pass
+        # return losses
 
     """
     Fill in the missing code here. The inference is also a bit involved. It is
@@ -431,4 +432,71 @@ class FCOS(nn.Module):
     def inference(
         self, points, strides, cls_logits, reg_outputs, ctr_logits, image_shapes
     ):
+        detections = []
+
+        for img_idx in range(len(image_shapes)):
+            img_shape = image_shapes[img_idx]
+            img_h, img_w = img_shape
+
+            boxes_all = []
+            scores_all = []
+            labels_all = []
+
+            for lvl, (points_i, stride_i, cls_i, reg_i, ctr_i) in enumerate(
+                    zip(points, strides, cls_logits, reg_outputs, ctr_logits)
+            ):
+                # Compute scores and decode boxes
+                scores_i = torch.sigmoid(cls_i[img_idx])  # [num_classes, H, W]
+                boxes_i = reg_i[img_idx] * stride_i  # [4, H, W]
+                ctr_i = torch.sigmoid(ctr_i[img_idx])  # [1, H, W]
+
+                # Filter out low-scoring and non-centered detections
+                keep = (scores_i.max(dim=0).values > self.score_thresh) & (ctr_i[0] > 0.5)
+                scores_i = scores_i[:, keep]  # [num_classes, keep]
+                boxes_i = boxes_i[:, keep]  # [4, keep]
+                points_i = points_i[keep]  # [keep, 2]
+
+                # ToDo: Do we need this?
+                # if scores_i.numel() == 0: # no points qualified!
+                #     continue
+
+                # Get top-k scoring detections
+                num_topk = min(self.topk_candidates, len(scores_i[0]))
+                scores_i, topk_idxs = scores_i.topk(num_topk, dim=1)  # [num_classes, topk]
+                boxes_i = boxes_i[:, topk_idxs[0]]  # [4, topk]
+                points_i = points_i[topk_idxs[0]]  # [topk, 2]
+
+                # Decode box coordinates
+                x1 = (points_i[:, 0] - boxes_i[0]) / 2
+                y1 = (points_i[:, 1] - boxes_i[1]) / 2
+                x2 = (points_i[:, 0] + boxes_i[2]) / 2
+                y2 = (points_i[:, 1] + boxes_i[3]) / 2
+                boxes_i = torch.stack([x1, y1, x2, y2], dim=1)
+
+                # Clip boxes
+                boxes_i[:, 0].clamp_(0, img_w)
+                boxes_i[:, 1].clamp_(0, img_h)
+                boxes_i[:, 2].clamp_(0, img_w)
+                boxes_i[:, 3].clamp_(0, img_h)
+
+                # Collect detections
+                boxes_all.append(boxes_i)
+                scores_all.append(torch.max(scores_i, dim = 0)[0])
+                labels_all.append(torch.argmax(scores_i, dim=0))
+
+            boxes = torch.cat(boxes_all, dim=0)
+            scores = torch.cat(scores_all)
+            labels = torch.cat(labels_all)
+
+            # Apply NMS
+            keep = batched_nms(boxes, scores, labels, self.nms_thresh)
+            keep = keep[: self.detections_per_img]
+            detections.append(
+                {
+                    "boxes": boxes[keep],
+                    "scores": scores[keep],
+                    "labels": labels[keep] - 1,  # Offset labels by -1 to match class indices
+                }
+            )
+
         return detections
