@@ -180,7 +180,7 @@ if __name__ == "__main__":
         "--ckpt-freq",
         default=1,
         type=int,
-        help="checkpoint frequency (default: every 5 epochs)",
+        help="checkpoint frequency (default: every 1 epochs)",
     )
     parser.add_argument(
         "--output", default="", type=str, help="name of exp folder (default: none)"
