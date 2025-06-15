@@ -63,7 +63,7 @@ class FCOSClassificationHead(nn.Module):
 
     def forward(self, x):
         """
-        Fill in the missing code here. The head will be applied to all levels
+        The head will be applied to all levels
         of the feature pyramid, and predict a single logit for each location on
         every feature location.
 
@@ -133,7 +133,7 @@ class FCOSRegressionHead(nn.Module):
 
     def forward(self, x):
         """
-        Fill in the missing code here. The logic is rather similar to
+        The logic is rather similar to
         FCOSClassificationHead. The key difference is that this head bundles both
         regression outputs and the center-ness scores.
 
@@ -378,8 +378,7 @@ class FCOS(nn.Module):
             return detections
 
     """
-    Fill in the missing code here. This is probably the most tricky part
-    in this assignment. Here you will need to compute the object label for each point
+    Here we will need to compute the object label for each point
     within the feature pyramid. If a point lies around the center of a foreground object
     (as controlled by self.center_sampling_radius), its regression and center-ness
     targets will also need to be computed.
@@ -643,7 +642,7 @@ class FCOS(nn.Module):
 
 
     """
-    Fill in the missing code here. The inference is also a bit involved. It is
+    The inference is also a bit involved. It is
     much easier to think about the inference on a single image
     (a) Loop over every pyramid level
         (1) compute the object scores
